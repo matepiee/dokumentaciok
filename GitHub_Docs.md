@@ -21,6 +21,9 @@ Ez a dokumentáció lépésről lépésre bemutatja, hogyan hozzunk létre egy b
     - [Első alkalommal (Cloning)](#első-alkalommal-cloning)
     - [Napi szinkronizálás (Fetch vs Pull)](#napi-szinkronizálás-fetch-vs-pull)
 5. [V. Konfliktuskezelés (Merge Conflicts)](#v-konfliktuskezelés-merge-conflicts)
+6. [VI. Speciális Forgatókönyvek (Scenarios)](#vi-speciális-forgatókönyvek-scenarios)
+    - [A) Unity Projekt Git Kezelése ("Mappamozgatós")](#a-forgatókönyv-unity-projekt-git-kezelése-a-mappamozgatós-módszer)
+    - [B) Monorepo (Frontend + Backend)](#b-forgatókönyv-frontend--backend-egy-repóban-monorepo)
 
 ---
 
@@ -117,7 +120,7 @@ git checkout -b [feature/feladat-neve]
 ```
 
 ### 2. Projekt fájlok kezelése (Pl. Unity létrehozásakor)
-Ha olyan szoftvert használsz (pl. Unity), ami almappát hoz létre:
+Ha olyan szoftvert használsz (pl. Unity), ami almappát hoz létre (Részletes útmutató a VI. fejezetben):
 
 1. Generáld le a projektet az új ágon lévő mappába.
 2. Lépj be a keletkezett almappába, és vágd ki (`Cut`) a tartalmát.
@@ -203,3 +206,129 @@ Előfordulhat, hogy te és a csapattársad ugyanannak a fájlnak ugyanazt a sor�
    git commit -m "Resolved merge conflict"
    git push
    ```
+
+---
+
+## VI. Speciális Forgatókönyvek (Scenarios)
+
+### A) Forgatókönyv: Unity Projekt Git Kezelése (A "Mappamozgatós" módszer)
+Unity-nél a legnagyobb kihívás, hogy a Unity Hub szeret egy saját mappát létrehozni a projektnévvel, de mi azt akarjuk, hogy a Repository gyökerében legyenek a fájlok (Assets, Packages), ne pedig egy almappában eldugva.
+
+**Előfeltétel:** A Repo már létezik (`main` branch, `.gitignore` Unity-hez beállítva, `README.md` kész).
+
+#### 1. Előkészületek (Branching)
+Nyisd meg a terminált a repo mappájában:
+
+```bash
+git checkout main
+git pull
+git checkout -b feature/unity-init
+```
+
+#### 2. A Projekt Generálása (A trükkös rész)
+1. Nyisd meg a **Unity Hub**-ot.
+2. Kattints a **New Project** gombra.
+3. **Location:** Válaszd ki a Git repositoryd mappáját.
+4. **Project Name:** Adj meg egy ideiglenes nevet (pl. `TempUnity`).
+5. Hozd létre a projektet (**Create project**).
+6. **FONTOS:** Várd meg, amíg a Unity teljesen betölt, majd **ZÁRD BE** a Unity szerkesztőt!
+   - *Miért? Mert a Windows nem engedi áthelyezni a fájlokat, amíg a Unity fut.*
+
+#### 3. Fájlok helyretětele (Takarítás)
+Most a mappád így néz ki: `Repo/.git`, `Repo/TempUnity`. Ezt javítjuk ki.
+
+1. Nyisd meg a Fájlkezelőt.
+2. Lépj be a `TempUnity` mappába.
+3. Jelöld ki az összes mappát és fájlt (`Assets`, `Packages`, `ProjectSettings`, `UserSettings` stb.).
+4. Vágd ki őket (**Ctrl + X**).
+5. Lépj vissza egyet a Repo gyökerébe.
+6. Illeszd be őket (**Ctrl + V**).
+7. Töröld ki az üres `TempUnity` mappát.
+
+#### 4. Commit és Push
+Most ellenőrizzük, hogy a `.gitignore` teszi-e a dolgát.
+
+```bash
+git status
+```
+- **Jó:** Ha csak az `Assets`, `Packages`, `ProjectSettings` mappákat látod zölddel/pirossal.
+- **Rossz:** Ha látsz `Library`, `Temp`, `Logs` mappákat. (Ha ilyet látsz, ellenőrizd a `.gitignore`-t!).
+
+Ha tiszta a terep:
+
+```bash
+git add .
+git commit -m "Unity projekt inicializálása a gyökérkönyvtárban"
+git push -u origin feature/unity-init
+```
+
+---
+
+### B) Forgatókönyv: Frontend + Backend egy repóban (Monorepo)
+Ebben az esetben a repository gyökere csak egy gyűjtőhely, a valódi kód két külön mappában (frontend, backend) lakik.
+
+**Előfeltétel:** A Repo már létezik (`main` branch, `README.md` kész).
+**Gitignore tipp:** Érdemes egyetlen közös `.gitignore`-t használni a gyökérben, ami mindkettő szemetét szűri (pl. `node_modules/` a frontendnek, `__pycache__/` vagy `venv/` a backendnek).
+
+#### 1. Előkészületek
+```bash
+git checkout main
+git pull
+git checkout -b feature/project-skeleton
+```
+
+#### 2. Mappaszerkezet kialakítása
+Kézzel hozzuk létre a struktúrát a terminálban vagy fájlkezelőben.
+
+```bash
+mkdir frontend
+mkdir backend
+```
+
+#### 3. Backend létrehozása (Példa: Python/Node.js)
+Ahelyett, hogy a gyökérbe generálnánk, belelépünk a mappába.
+
+Példa (Node.js backend):
+```bash
+cd backend
+npm init -y
+echo "console.log('Backend running')" > index.js
+cd ..  # Visszalépés a gyökérbe!
+```
+
+#### 4. Frontend létrehozása (Példa: React/Vite)
+Szintén belelépünk a mappába, vagy megmondjuk az eszköznek, hova dolgozzon.
+
+Példa (Vite):
+```bash
+# Itt feltételezzük, hogy a 'frontend' mappa üres
+npm create vite@latest frontend -- --template react
+# (A fenti parancs a meglévő 'frontend' mappába teszi a fájlokat, ha az üres)
+```
+
+#### 5. Ellenőrzés és Commit
+**A legfontosabb szabály:** A Git parancsokat mindig a gyökérből adjuk ki! (Onnan, ahol a `.git` mappa van).
+
+Győződj meg róla, hogy a gyökérben vagy (`cd ..` ha kell).
+
+**Ellenőrzés:**
+```bash
+git status
+```
+Látnod kell: `backend/index.js`, `frontend/src/...` stb.
+
+**Commit:**
+```bash
+git add .
+git commit -m "Frontend és Backend mappa szerkezet létrehozása"
+git push -u origin feature/project-skeleton
+```
+
+#### 6. Hogyan dolgozunk ezzel később? (Fontos workflow infó!)
+Amikor fejlesztesz, két terminált szokás nyitni:
+
+1. **Terminál (Git kezelés):** Ez mindig a gyökérben marad. Itt adod ki a `git add`, `git commit`, `git push` parancsokat.
+2. **Terminál (Futtatás):** Ezzel belelépsz az adott mappába (`cd frontend`), hogy elindítsd a szervert (`npm run dev`), telepíts csomagot (`npm install axios`), stb.
+
+> **Soha ne csinálj `git init`-et az almappákban (backend/frontend)! Csak egy `.git` mappa legyen, a legtetején.**
+
